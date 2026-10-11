@@ -35,9 +35,22 @@ def init_db() -> None:
     with engine.begin() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
     Base.metadata.create_all(engine)
-    # The read-only role may only SELECT the demo tables, never users/audit/etc. (FR-5)
+    _ensure_readonly_role()
+
+
+def _ensure_readonly_role() -> None:
+    """Create the read-only role if missing (hosted Postgres runs no init scripts).
+
+    It may only SELECT the demo tables, never users/audit/etc. (FR-5)
+    """
+    pw = _settings.readonly_db_password.replace("'", "''")
     with engine.begin() as conn:
-        exists = conn.execute(text("SELECT 1 FROM pg_roles WHERE rolname='opspilot_ro'")).scalar()
-        if exists:
-            for t in DEMO_TABLES:
-                conn.execute(text(f"GRANT SELECT ON {t} TO opspilot_ro"))
+        if not conn.execute(text("SELECT 1 FROM pg_roles WHERE rolname='opspilot_ro'")).scalar():
+            conn.exec_driver_sql(f"CREATE ROLE opspilot_ro LOGIN PASSWORD '{pw}'")
+            conn.exec_driver_sql("ALTER ROLE opspilot_ro SET statement_timeout = '3s'")
+            conn.exec_driver_sql("ALTER ROLE opspilot_ro SET default_transaction_read_only = on")
+        db = conn.execute(text("SELECT current_database()")).scalar()
+        conn.exec_driver_sql(f'GRANT CONNECT ON DATABASE "{db}" TO opspilot_ro')
+        conn.exec_driver_sql("GRANT USAGE ON SCHEMA public TO opspilot_ro")
+        for t in DEMO_TABLES:
+            conn.exec_driver_sql(f"GRANT SELECT ON {t} TO opspilot_ro")

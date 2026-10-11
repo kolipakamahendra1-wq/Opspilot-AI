@@ -1,7 +1,9 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import make_url
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -10,8 +12,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ROOT / ".env", extra="ignore")
 
     database_url: str = "postgresql+psycopg://opspilot:opspilot@127.0.0.1:5434/opspilot"
-    # Read-only role used by the agent's SQL tool (FR-5).
-    readonly_database_url: str = "postgresql+psycopg://opspilot_ro:opspilot_ro@127.0.0.1:5434/opspilot"
+    # Read-only role used by the agent's SQL tool (FR-5). Empty = same host/db as DATABASE_URL.
+    readonly_database_url: str = ""
+    readonly_db_password: str = "opspilot_ro"
     mock_service_url: str = "http://127.0.0.1:8001"
 
     # "ollama" = local LLM via OpenAI-compatible API; "rules" = deterministic fallback only.
@@ -38,6 +41,24 @@ class Settings(BaseSettings):
     max_tool_steps: int = 6
     documents_dir: Path = ROOT / "data" / "documents"
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
+
+
+    @model_validator(mode="after")
+    def _normalize_urls(self) -> "Settings":
+        # Hosted Postgres (Railway, Render) hands out postgres:// or postgresql:// URLs.
+        def fix(url: str) -> str:
+            for prefix in ("postgres://", "postgresql://"):
+                if url.startswith(prefix):
+                    return "postgresql+psycopg://" + url[len(prefix):]
+            return url
+
+        self.database_url = fix(self.database_url)
+        if self.readonly_database_url:
+            self.readonly_database_url = fix(self.readonly_database_url)
+        else:
+            ro = make_url(self.database_url).set(username="opspilot_ro", password=self.readonly_db_password)
+            self.readonly_database_url = ro.render_as_string(hide_password=False)
+        return self
 
 
 @lru_cache

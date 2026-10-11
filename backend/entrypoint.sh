@@ -11,4 +11,4 @@ if [ "${LLM_PROVIDER:-ollama}" = "ollama" ] || [ "${EMBED_PROVIDER:-ollama}" = "
 fi
 
 python -m backend.database.seed
-exec uvicorn backend.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'
+exec uvicorn backend.main:app --host "${HOST:-0.0.0.0}" --port "${PORT:-8000}" --proxy-headers --forwarded-allow-ips='*'
