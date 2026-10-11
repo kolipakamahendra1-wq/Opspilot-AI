@@ -33,7 +33,8 @@ def get_db() -> Iterator[Session]:
 
 def init_db() -> None:
     with engine.begin() as conn:
-        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        if not conn.execute(text("SELECT 1 FROM pg_extension WHERE extname='vector'")).scalar():
+            conn.execute(text("CREATE EXTENSION vector"))
     Base.metadata.create_all(engine)
     _ensure_readonly_role()
 
@@ -49,8 +50,8 @@ def _ensure_readonly_role() -> None:
             conn.exec_driver_sql(f"CREATE ROLE opspilot_ro LOGIN PASSWORD '{pw}'")
             conn.exec_driver_sql("ALTER ROLE opspilot_ro SET statement_timeout = '3s'")
             conn.exec_driver_sql("ALTER ROLE opspilot_ro SET default_transaction_read_only = on")
-        db = conn.execute(text("SELECT current_database()")).scalar()
-        conn.exec_driver_sql(f'GRANT CONNECT ON DATABASE "{db}" TO opspilot_ro')
-        conn.exec_driver_sql("GRANT USAGE ON SCHEMA public TO opspilot_ro")
+            db = conn.execute(text("SELECT current_database()")).scalar()
+            conn.exec_driver_sql(f'GRANT CONNECT ON DATABASE "{db}" TO opspilot_ro')
+            conn.exec_driver_sql("GRANT USAGE ON SCHEMA public TO opspilot_ro")
         for t in DEMO_TABLES:
             conn.exec_driver_sql(f"GRANT SELECT ON {t} TO opspilot_ro")

@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     max_tool_steps: int = 6
     documents_dir: Path = ROOT / "data" / "documents"
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
+    # Serverless hosting (Vercel): no background work after a response, so runs complete
+    # inside the request, and the mock service is called in-process (MOCK_SERVICE_URL=inprocess).
+    serverless: bool = False
 
 
     @model_validator(mode="after")
@@ -56,7 +59,10 @@ class Settings(BaseSettings):
         if self.readonly_database_url:
             self.readonly_database_url = fix(self.readonly_database_url)
         else:
-            ro = make_url(self.database_url).set(username="opspilot_ro", password=self.readonly_db_password)
+            url = make_url(self.database_url)
+            # Poolers such as Supabase's address roles as "<role>.<project-ref>".
+            suffix = "." + url.username.split(".", 1)[1] if url.username and "." in url.username else ""
+            ro = url.set(username=f"opspilot_ro{suffix}", password=self.readonly_db_password)
             self.readonly_database_url = ro.render_as_string(hide_password=False)
         return self
 

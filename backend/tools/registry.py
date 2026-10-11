@@ -112,10 +112,25 @@ class EscalateOut(BaseModel):
 
 # ---------- implementations ----------
 
-def _mock(method: str, path: str) -> dict:
+_inprocess_client = None
+
+
+def _mock_request(method: str, path: str) -> httpx.Response:
     st = get_settings()
+    if st.mock_service_url == "inprocess":
+        global _inprocess_client
+        if _inprocess_client is None:
+            from fastapi.testclient import TestClient
+
+            from mock_service.main import app as mock_app
+            _inprocess_client = TestClient(mock_app)
+        return _inprocess_client.request(method, path)
+    return httpx.request(method, f"{st.mock_service_url}{path}", timeout=st.tool_timeout_s)
+
+
+def _mock(method: str, path: str) -> dict:
     try:
-        r = httpx.request(method, f"{st.mock_service_url}{path}", timeout=st.tool_timeout_s)
+        r = _mock_request(method, path)
     except httpx.HTTPError as e:
         raise ToolUnavailable(f"{type(e).__name__}: {e}")
     if r.status_code >= 500:

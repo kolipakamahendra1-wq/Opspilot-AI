@@ -10,6 +10,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from backend.agents import service
+from backend.config import get_settings
 from backend.database.models import Approval, Run, RunStep, Ticket, User
 from backend.database.session import get_db, session_scope
 from backend.security.audit import audit
@@ -72,6 +73,14 @@ def run_out(run: Run, s: Session, with_steps: bool = True) -> dict:
     return out
 
 
+def _schedule(bg: BackgroundTasks, fn, run_id: str) -> None:
+    """Run after the response, or inline on serverless hosts that stop work once a response is sent."""
+    if get_settings().serverless:
+        fn(run_id)
+    else:
+        bg.add_task(fn, run_id)
+
+
 def _can_view_run(run: Run, user: User) -> bool:
     return user.role == "admin" or run.created_by == user.id
 
@@ -125,7 +134,7 @@ def create_ticket(body: TicketIn, bg: BackgroundTasks, user: User = Depends(curr
     out = ticket_out(t)
     if body.start_run:
         run_id = service.create_run(t, user)
-        bg.add_task(service.execute_run, run_id)
+        _schedule(bg, service.execute_run, run_id)
         out["run_id"] = run_id
     return out
 
@@ -180,7 +189,7 @@ def start_run(body: RunIn, bg: BackgroundTasks, user: User = Depends(current_use
         service.execute_run(run_id)
         with session_scope() as s:
             return run_out(s.get(Run, run_id), s, with_steps=False)
-    bg.add_task(service.execute_run, run_id)
+    _schedule(bg, service.execute_run, run_id)
     return {"run_id": run_id, "status": "running"}
 
 
@@ -281,7 +290,7 @@ def decide(approval_id: int, body: DecisionIn, bg: BackgroundTasks, user: User =
         run_id = service.decide_approval(approval_id, body.decision == "approve", user, body.note)
     except ValueError as e:
         raise HTTPException(409, str(e))
-    bg.add_task(service.resume_run, run_id)
+    _schedule(bg, service.resume_run, run_id)
     return {"approval_id": approval_id, "run_id": run_id, "decision": body.decision}
 
 

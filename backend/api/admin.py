@@ -189,7 +189,10 @@ def run_evaluation(body: EvalRunIn, user: User = Depends(require_admin), db: Ses
         with _eval_lock:
             run_eval(mode=body.mode, evaluation_id=ev.id, limit=body.limit)
 
-    threading.Thread(target=work, daemon=True).start()
+    if get_settings().serverless:
+        work()  # a serverless function cannot keep a thread alive after responding
+    else:
+        threading.Thread(target=work, daemon=True).start()
     return {"evaluation_id": ev.id, "status": "running"}
 
 
