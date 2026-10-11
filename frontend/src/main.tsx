@@ -6,8 +6,6 @@ import { MotionConfig } from "motion/react";
 import { ThemedToaster } from "@/components/ui/themed-toaster";
 import App from "./App";
 import { AuthProvider } from "@/features/auth/AuthContext";
-import "@fontsource-variable/geist";
-import "@fontsource-variable/geist-mono";
 import "./index.css";
 
 const queryClient = new QueryClient({
