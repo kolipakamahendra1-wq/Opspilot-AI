@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  LLM_PROVIDER: rules
+  EMBED_PROVIDER: hash
+  TEST_DATABASE_URL: postgresql+psycopg://opspilot:opspilot@127.0.0.1:5432/opspilot_test
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip, cache-dependency-path: requirements-dev.txt }
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check backend mock_service tests
+
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env: { POSTGRES_DB: opspilot, POSTGRES_USER: opspilot, POSTGRES_PASSWORD: opspilot }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U opspilot" --health-interval 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip, cache-dependency-path: requirements-dev.txt }
+      - run: pip install -r requirements-dev.txt
+      - name: Create read-only role
+        run: PGPASSWORD=opspilot psql -h 127.0.0.1 -U opspilot -d opspilot -f backend/database/initdb/01-roles.sql
+      - name: Unit tests
+        run: pytest tests/unit -q
+      - name: Integration tests
+        run: pytest tests/integration -q
+      - name: Evaluation (50 scenarios)
+        run: pytest tests/evaluation -q
+      - name: Evaluation report
+        if: always()
+        run: python -c "import json;d=json.load(open('data/evaluation/results.json'));print(json.dumps(d['summary'],indent=2))" || true
+
+  frontend:
+    needs: lint
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: frontend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+
+  docker:
+    needs: [test, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose build
+
+  deploy:
+    needs: docker
+    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Railway
+        run: npx -y @railway/cli@4 up --ci --service "${{ vars.RAILWAY_SERVICE }}"
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}

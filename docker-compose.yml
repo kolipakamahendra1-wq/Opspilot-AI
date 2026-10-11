@@ -1,0 +1,49 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: opspilot
+      POSTGRES_USER: opspilot
+      POSTGRES_PASSWORD: opspilot
+    ports: ["5434:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/database/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opspilot -d opspilot"]
+      interval: 3s
+      retries: 20
+
+  mock_service:
+    build: { context: ., dockerfile: mock_service/Dockerfile }
+    environment:
+      DATABASE_URL: postgresql+psycopg://opspilot:opspilot@db:5432/opspilot
+    ports: ["8001:8001"]
+    depends_on: { db: { condition: service_healthy } }
+
+  backend:
+    build: { context: ., dockerfile: backend/Dockerfile }
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+psycopg://opspilot:opspilot@db:5432/opspilot
+      READONLY_DATABASE_URL: postgresql+psycopg://opspilot_ro:opspilot_ro@db:5432/opspilot
+      MOCK_SERVICE_URL: http://mock_service:8001
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:11434/v1}
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      EMBED_PROVIDER: ${EMBED_PROVIDER:-ollama}
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    ports: ["8000:8000"]
+    depends_on:
+      db: { condition: service_healthy }
+      mock_service: { condition: service_started }
+
+  frontend:
+    build: { context: ./frontend }
+    ports: ["3000:80"]
+    depends_on: [backend]
+
+volumes:
+  pgdata:

@@ -1,0 +1,13 @@
+# Luminous Inquiry
+
+**A design philosophy for instruments of attention.**
+
+Luminous Inquiry treats reasoning as a physical phenomenon: something with mass, orbit and light, recorded the way an observatory records the night sky. Every composition is a star chart of a mind at work. Points of attention are rendered as precise instruments (concentric rings, hairline crosshairs, measured ticks) suspended in deep darkness, joined by trajectories so fine they seem etched rather than drawn. The work must look meticulously crafted, the product of painstaking calibration by someone at the very top of their field. Every radius is deliberate and every gap is measured.
+
+Space is the primary material. Darkness is not background but medium: a near-black field with a faint, patient lattice of dots, like graph paper seen through deep water. Forms occupy perhaps a third of the canvas, and the rest is held silence that gives each mark its weight. Composition follows an arc rather than a grid, a slow ascending sweep that makes progression legible without a single arrow. Balance is asymmetric yet inevitable, the kind of placement that only emerges from countless refinements.
+
+Color arrives as light, never as paint. Three spectral sources (violet, sky blue, amber) bloom out of the dark as soft atmospheric fields, the way nebulae glow behind a precise instrument. They are diffuse and enormous, while the instruments themselves stay almost monochrome: pale ivory lines at hairline weight. A single warm accent may mark the one moment of consequence in the sequence, a threshold where light changes temperature. The palette is restrained to the point of austerity, and that restraint is the luxury.
+
+Rhythm comes from repetition at small scale. Tick marks march along every trajectory at even intervals, concentric rings step outward in measured increments, and coordinates whisper beside each point. This dense accumulation rewards close viewing: from afar the piece reads as one luminous gesture, while up close it reveals the obsessive annotation of a master draftsman. Master-level execution means no line is approximate and no label touches another.
+
+Typography is clinical and nearly silent: thin monospaced labels in small capitals, set like plate annotations in a scientific atlas, with one quiet italic serif line as a caption. Text never explains. It names, numbers and dates, the way a catalogue entry might. Hierarchy lives in luminosity and scale, not in words. The finished artifact should feel like a plate removed from an atlas of an invisible discipline, proof that something ephemeral can be studied, mapped and understood through careful attention.
